@@ -23,6 +23,7 @@ Configure the client to launch that command with the project path as its argumen
 - the `upload_file` tool for saving ChatGPT attachments into the workspace;
 - the `get_image` tool for returning workspace images inline;
 - the `get_host_screen` tool for capturing the macOS or Linux host screen and returning it inline;
+- the `move_host_pointer` and `click_host_pointer` tools for moving/clicking the host mouse pointer;
 - the `bash` tool for inspecting, editing, and testing files through mini-SWE-agent's local environment.
 
 `upload_file` uses ChatGPT's MCP file parameter extension. ChatGPT passes an authorized temporary file reference,
@@ -34,6 +35,9 @@ both a text summary and the inline image. The text includes the saved path, MIME
 size. On macOS, the terminal or Python process that starts the MCP server may need Screen Recording permission. On
 Linux, install one screenshot backend such as `gnome-screenshot`, `grim`, `spectacle`, `scrot`, `maim`, or
 ImageMagick's `import`.
+
+`move_host_pointer` and `click_host_pointer` use absolute screen coordinates. On macOS, install `cliclick`. On Linux,
+install `xdotool`.
 
 For a client that connects by URL, use Streamable HTTP:
 

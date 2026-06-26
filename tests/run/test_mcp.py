@@ -3,7 +3,15 @@ from pathlib import Path
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
-from minisweagent.run.mcp import MCPServerConfig, _save_medium_jpeg, _screenshot_commands, create_server
+from minisweagent.run.mcp import (
+    MCPServerConfig,
+    _pointer_click_command,
+    _pointer_move_command,
+    _save_medium_jpeg,
+    _screenshot_commands,
+    _validate_pointer_coordinates,
+    create_server,
+)
 
 
 @pytest.mark.asyncio
@@ -11,7 +19,15 @@ async def test_mcp_server_exposes_context_prompt_and_bash(tmp_path: Path):
     server = create_server(MCPServerConfig(tmp_path))
 
     tools = await server.list_tools()
-    assert [tool.name for tool in tools] == ["get_coding_prompt", "upload_file", "get_image", "get_host_screen", "bash"]
+    assert [tool.name for tool in tools] == [
+        "get_coding_prompt",
+        "upload_file",
+        "get_image",
+        "get_host_screen",
+        "move_host_pointer",
+        "click_host_pointer",
+        "bash",
+    ]
     assert tools[1].meta == {"openai/fileParams": ["file"]}
     assert tools[1].inputSchema["$defs"]["FileReference"]["required"] == ["download_url", "file_id"]
     assert [prompt.name for prompt in await server.list_prompts()] == ["coding_agent"]
@@ -126,3 +142,26 @@ def test_mcp_save_medium_jpeg_returns_resolution(tmp_path: Path):
 
     assert _save_medium_jpeg(source, destination) == (4, 3)
     assert destination.read_bytes().startswith(b"\xff\xd8")
+
+
+def test_mcp_pointer_commands_support_macos_and_linux():
+    assert _pointer_move_command(10, 20, "darwin") == ["cliclick", "m:10,20"]
+    assert _pointer_click_command(10, 20, "left", "darwin") == ["cliclick", "c:10,20"]
+    assert _pointer_click_command(10, 20, "right", "darwin") == ["cliclick", "rc:10,20"]
+    assert _pointer_move_command(10, 20, "linux") == ["xdotool", "mousemove", "10", "20"]
+    assert _pointer_click_command(10, 20, "right", "linux") == [
+        "xdotool",
+        "mousemove",
+        "10",
+        "20",
+        "click",
+        "3",
+    ]
+
+
+def test_mcp_pointer_coordinates_must_be_non_negative():
+    _validate_pointer_coordinates(0, 0)
+    with pytest.raises(ValueError, match="non-negative"):
+        _validate_pointer_coordinates(-1, 0)
+    with pytest.raises(ValueError, match="non-negative"):
+        _validate_pointer_coordinates(0, -1)

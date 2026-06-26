@@ -81,6 +81,33 @@ def _capture_screen(path: Path) -> None:
     raise RuntimeError("All screenshot commands failed")
 
 
+def _pointer_move_command(x: int, y: int, platform: str = sys.platform) -> list[str]:
+    if platform == "darwin":
+        return ["cliclick", f"m:{x},{y}"]
+    if platform.startswith("linux"):
+        return ["xdotool", "mousemove", str(x), str(y)]
+    return []
+
+
+def _pointer_click_command(x: int, y: int, button: str, platform: str = sys.platform) -> list[str]:
+    if platform == "darwin":
+        return ["cliclick", f"{'rc' if button == 'right' else 'c'}:{x},{y}"]
+    if platform.startswith("linux"):
+        return ["xdotool", "mousemove", str(x), str(y), "click", "3" if button == "right" else "1"]
+    return []
+
+
+def _run_pointer_command(command: list[str]) -> None:
+    if not command or not which(command[0]):
+        raise RuntimeError("No pointer command found. On macOS, install cliclick. On Linux, install xdotool.")
+    subprocess.run(command, check=True)
+
+
+def _validate_pointer_coordinates(x: int, y: int) -> None:
+    if x < 0 or y < 0:
+        raise ValueError("x and y must be non-negative screen coordinates")
+
+
 def _save_medium_jpeg(source: Path, destination: Path) -> tuple[int, int]:
     from PIL import Image as PILImage
 
@@ -182,6 +209,22 @@ def create_server(config: MCPServerConfig) -> FastMCP:
             ),
             _get_image(workspace, image_path.relative_to(workspace)),
         )
+
+    @server.tool()
+    def move_host_pointer(x: int, y: int) -> dict[str, Any]:
+        """Move the host mouse pointer to absolute screen coordinates."""
+        _validate_pointer_coordinates(x, y)
+        command = _pointer_move_command(x, y)
+        _run_pointer_command(command)
+        return {"x": x, "y": y, "backend": command[0]}
+
+    @server.tool()
+    def click_host_pointer(x: int, y: int, button: Literal["left", "right"] = "left") -> dict[str, Any]:
+        """Click the host mouse pointer at absolute screen coordinates with the left or right button."""
+        _validate_pointer_coordinates(x, y)
+        command = _pointer_click_command(x, y, button)
+        _run_pointer_command(command)
+        return {"x": x, "y": y, "button": button, "backend": command[0]}
 
     @server.tool()
     def bash(command: str) -> dict[str, Any]:
