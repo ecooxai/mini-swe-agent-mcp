@@ -5,6 +5,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from minisweagent.run.mcp import (
     MCPServerConfig,
+    _parse_screen_bounds,
     _pointer_click_command,
     _pointer_move_command,
     _save_medium_jpeg,
@@ -142,6 +143,21 @@ def test_mcp_save_medium_jpeg_returns_resolution(tmp_path: Path):
 
     assert _save_medium_jpeg(source, destination) == (4, 3)
     assert destination.read_bytes().startswith(b"\xff\xd8")
+
+
+def test_mcp_save_medium_jpeg_resizes_to_logical_resolution(tmp_path: Path):
+    from PIL import Image as PILImage
+
+    source = tmp_path / "screen.png"
+    destination = tmp_path / "screen.jpg"
+    PILImage.new("RGB", (8, 6), "red").save(source)
+
+    assert _save_medium_jpeg(source, destination, (4, 3)) == (4, 3)
+
+
+def test_mcp_parse_screen_bounds():
+    assert _parse_screen_bounds("0, 0, 1637, 1024") == (1637, 1024)
+    assert _parse_screen_bounds("-100, 0, 1637, 1024") == (1737, 1024)
 
 
 def test_mcp_pointer_commands_support_macos_and_linux():

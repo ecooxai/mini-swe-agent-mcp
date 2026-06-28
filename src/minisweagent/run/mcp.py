@@ -81,6 +81,28 @@ def _capture_screen(path: Path) -> None:
     raise RuntimeError("All screenshot commands failed")
 
 
+def _parse_screen_bounds(bounds: str) -> tuple[int, int]:
+    left, top, right, bottom = [int(float(part.strip())) for part in bounds.split(",")]
+    return right - left, bottom - top
+
+
+def _macos_logical_screen_size() -> tuple[int, int] | None:
+    if sys.platform != "darwin":
+        return None
+    try:
+        return _parse_screen_bounds(
+            subprocess.run(
+                ["osascript", "-e", 'tell application "Finder" to get bounds of window of desktop'],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            ).stdout
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError):
+        return None
+
+
 def _pointer_move_command(x: int, y: int, platform: str = sys.platform) -> list[str]:
     if platform == "darwin":
         return ["cliclick", f"m:{x},{y}"]
@@ -108,10 +130,12 @@ def _validate_pointer_coordinates(x: int, y: int) -> None:
         raise ValueError("x and y must be non-negative screen coordinates")
 
 
-def _save_medium_jpeg(source: Path, destination: Path) -> tuple[int, int]:
+def _save_medium_jpeg(source: Path, destination: Path, size: tuple[int, int] | None = None) -> tuple[int, int]:
     from PIL import Image as PILImage
 
     with PILImage.open(source) as image:
+        if size is not None and image.size != size:
+            image = image.resize(size, PILImage.Resampling.LANCZOS)
         image.convert("RGB").save(destination, "JPEG", quality=60, optimize=True)
         return image.size
 
@@ -195,7 +219,7 @@ def create_server(config: MCPServerConfig) -> FastMCP:
         image_path.parent.mkdir(parents=True, exist_ok=True)
         capture_path = image_path.with_suffix(".capture.png")
         _capture_screen(capture_path)
-        width, height = _save_medium_jpeg(capture_path, image_path)
+        width, height = _save_medium_jpeg(capture_path, image_path, _macos_logical_screen_size())
         capture_path.unlink()
         return (
             "\n".join(
@@ -203,6 +227,7 @@ def create_server(config: MCPServerConfig) -> FastMCP:
                     f"path: {image_path.relative_to(workspace)}",
                     "format: image/jpeg",
                     "quality: 60",
+                    "coordinate_system: logical screen coordinates",
                     f"resolution: {width}x{height}",
                     f"size: {image_path.stat().st_size} bytes",
                 ]

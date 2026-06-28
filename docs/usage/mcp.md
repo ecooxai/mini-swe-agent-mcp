@@ -31,10 +31,11 @@ and the server downloads its bytes into the requested relative workspace path. A
 the connector metadata in ChatGPT before using it.
 
 `get_host_screen` saves a medium-quality JPEG screenshot to `.miniswe-agent/host-screen.jpg` by default and returns
-both a text summary and the inline image. The text includes the saved path, MIME type, quality, resolution, and file
-size. On macOS, the terminal or Python process that starts the MCP server may need Screen Recording permission. On
-Linux, install one screenshot backend such as `gnome-screenshot`, `grim`, `spectacle`, `scrot`, `maim`, or
-ImageMagick's `import`.
+both a text summary and the inline image. The text includes the saved path, MIME type, quality, coordinate system,
+resolution, and file size. On macOS Retina displays, the screenshot is resized to logical screen coordinates so image
+coordinates match `move_host_pointer` and `click_host_pointer` coordinates. On macOS, the terminal or Python process
+that starts the MCP server may need Screen Recording permission. On Linux, install one screenshot backend such as
+`gnome-screenshot`, `grim`, `spectacle`, `scrot`, `maim`, or ImageMagick's `import`.
 
 `move_host_pointer` and `click_host_pointer` use absolute screen coordinates. On macOS, install `cliclick`. On Linux,
 install `xdotool`.
